@@ -279,6 +279,109 @@ namespace
 			LOG_ERR("failed to hook");
 	}
 
+	CLI::App* init_p2c(CLI::App& app, const CLI::Transformer& xf)
+	{
+		SUB(p2c, "resolve a process identifier to its cr3 (DirectoryTableBase). Give exactly one "
+		         "of --pid / --name. Walks the EPROCESS ActiveProcessLinks chain via "
+		         "PsInitialSystemProcess; no kernel driver needed.");
+		LOPT(p2c, pid);
+		LOPT(p2c, name);
+		return p2c;
+	}
+
+	void process_p2c(const CLI::App* const p2c)
+	{
+		const auto pid  = GET_U64(p2c, --pid);
+		const auto name = GET_STR(p2c, --name);
+
+		if (pid)
+		{
+			const auto cr3 = sys::kern::cr3_for_pid(static_cast<std::uint32_t>(pid));
+			if (cr3)
+				LOG_INFO("pid {} -> cr3 {:#x}", pid, cr3);
+			else
+				LOG_ERR("pid {} not found", pid);
+			return;
+		}
+
+		if (!name.empty())
+		{
+			const auto resolved_pid = sys::kern::pid_for_name(name);
+			if (!resolved_pid)
+			{
+				LOG_ERR("name '{}' not found", name);
+				return;
+			}
+			const auto cr3 = sys::kern::cr3_for_pid(resolved_pid);
+			if (cr3)
+				LOG_INFO("'{}' -> pid {} -> cr3 {:#x}", name, resolved_pid, cr3);
+			else
+				LOG_ERR("'{}' -> pid {} had null cr3", name, resolved_pid);
+			return;
+		}
+
+		LOG_ERR("p2c: give --pid or --name");
+	}
+
+	CLI::App* init_aih(CLI::App& app, const CLI::Transformer& xf)
+	{
+		SUB(aih, "add an INT3 (0xCC) shadow-page hook on the given guest virtual address; reads through "
+		         "the page return the original bytes (integrity scans safe), execution hits INT3. "
+		         "Use exactly one of --cr3 / --pid / --name to pick the target process address space; "
+		         "a VEH in that process must handle the #BP. Defaults to the kernel cr3 if all are omitted.");
+		TREQ(aih, virtual_address);
+		LOPT(aih, cr3);
+		LOPT(aih, pid);
+		LOPT(aih, name);
+		return aih;
+	}
+
+	void process_aih(const CLI::App* const aih)
+	{
+		const auto va   = GET_U64(aih, virtual_address);
+		const auto cr3  = GET_U64(aih, --cr3);
+		const auto pid  = GET_U64(aih, --pid);
+		const auto name = GET_STR(aih, --name);
+
+		std::uint64_t effective_cr3 = cr3;
+
+		if (!effective_cr3 && pid)
+		{
+			effective_cr3 = sys::kern::cr3_for_pid(static_cast<std::uint32_t>(pid));
+			if (!effective_cr3)
+			{
+				LOG_ERR("aih: no running process with pid {}", pid);
+				return;
+			}
+			LOG_INFO("aih: pid {} -> cr3 {:#x}", pid, effective_cr3);
+		}
+
+		if (!effective_cr3 && !name.empty())
+		{
+			const auto resolved_pid = sys::kern::pid_for_name(name);
+			if (!resolved_pid)
+			{
+				LOG_ERR("aih: no running process named '{}'", name);
+				return;
+			}
+			effective_cr3 = sys::kern::cr3_for_pid(resolved_pid);
+			if (!effective_cr3)
+			{
+				LOG_ERR("aih: pid {} for name '{}' had null cr3", resolved_pid, name);
+				return;
+			}
+			LOG_INFO("aih: '{}' -> pid {} -> cr3 {:#x}", name, resolved_pid, effective_cr3);
+		}
+
+		if (!effective_cr3)
+			effective_cr3 = sys::kern::curr_cr3;
+
+		if (hook::install_int3(va, effective_cr3))
+			LOG_INFO("success in int3 hook");
+		else
+			LOG_ERR("failed to install int3 hook");
+	}
+
 	CLI::App* init_rkh(CLI::App& app, const CLI::Transformer& xf)
 	{
 		SUB(rkh, "remove a previously placed hook on specified kernel code (given the guest virtual address)");
@@ -462,6 +565,8 @@ namespace
 		const CLI::App* const wgvm = init_wgvm(app, xf);
 		const CLI::App* const cgvm = init_cgvm(app, xf);
 		const CLI::App* const akh  = init_akh(app, xf);
+		const CLI::App* const aih  = init_aih(app, xf);
+		const CLI::App* const p2c  = init_p2c(app, xf);
 		const CLI::App* const rkh  = init_rkh(app, xf);
 		const CLI::App* const gva  = init_gva(app, xf);
 		const CLI::App* const hgpp = init_hgpp(app, xf);
@@ -483,6 +588,8 @@ namespace
 			PROCESS_COMMAND(wgvm);
 			PROCESS_COMMAND(cgvm);
 			PROCESS_COMMAND(akh);
+			PROCESS_COMMAND(aih);
+			PROCESS_COMMAND(p2c);
 			PROCESS_COMMAND(rkh);
 			PROCESS_COMMAND(gva);
 			PROCESS_COMMAND(hgpp);

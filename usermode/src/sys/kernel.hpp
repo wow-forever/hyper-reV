@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace sys::kern
@@ -21,6 +22,11 @@ namespace sys::kern
 	bool init() noexcept;
 
 	void parse_modules() noexcept;
+
+	// walks the EPROCESS ActiveProcessLinks chain anchored at PsInitialSystemProcess
+	// and returns DirectoryTableBase for the first match. 0 if not found.
+	std::uint64_t cr3_for_pid(std::uint32_t pid) noexcept;
+	std::uint32_t pid_for_name(std::string_view name) noexcept;
 
 	inline auto nt() noexcept
 	{

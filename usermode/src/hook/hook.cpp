@@ -139,6 +139,26 @@ bool hook::install(const std::uintptr_t target_va,
 	return true;
 }
 
+bool hook::install_int3(const std::uintptr_t target_va, const std::uint64_t target_cr3) noexcept
+{
+	if (list.contains(target_va))
+	{
+		LOG_ERR("hook::install_int3: already hooked");
+		return false;
+	}
+
+	const auto page = arch::page_base(target_va);
+	const auto off = target_va & (arch::page_size - 1);
+	const std::uint8_t cc = 0xCC;
+
+	auto target = shadow::create(page, off, std::span<const std::uint8_t>(&cc, 1), target_cr3);
+	if (!target)
+		return false;
+
+	list.emplace(target_va, hook_record{ std::move(*target), {}, 0, 0 });
+	return true;
+}
+
 bool hook::remove(const std::uintptr_t target_va) noexcept
 {
 	const auto it = list.find(target_va);
@@ -148,7 +168,10 @@ bool hook::remove(const std::uintptr_t target_va) noexcept
 		return false;
 	}
 
-	arena::free(it->second.stub_va, it->second.stub_size);
+	// install_int3 records have no arena slot (stub_size == 0); skip the free
+	if (it->second.stub_size != 0)
+		arena::free(it->second.stub_va, it->second.stub_size);
+
 	list.erase(it);
 	return true;
 }

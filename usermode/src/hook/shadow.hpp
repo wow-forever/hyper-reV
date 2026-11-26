@@ -45,9 +45,12 @@ namespace hook
 		shadow(const shadow&) = delete;
 		shadow& operator=(const shadow&) = delete;
 
+		// target_cr3 lets the caller map target_va in a foreign address space (e.g. wow.exe)
+		// while the shadow page itself still lives in usermode.exe's own cr3.
 		static std::optional<shadow> create(const std::uintptr_t page_va,
 		                                    const std::size_t off,
-		                                    const std::span<const std::uint8_t> patch) noexcept
+		                                    const std::span<const std::uint8_t> patch,
+		                                    const std::uint64_t target_cr3 = sys::kern::curr_cr3) noexcept
 		{
 			nt::alloc mem(arch::page_size);
 			if (!mem)
@@ -58,7 +61,7 @@ namespace hook
 
 			mem.lock();
 
-			if (!sys::kern::read(page_va, mem.bytes()))
+			if (!sys::kern::read(page_va, mem.bytes(), target_cr3))
 			{
 				LOG_ERR("hook: snapshot failed for {:#x}", page_va);
 				return std::nullopt;
@@ -67,7 +70,7 @@ namespace hook
 			if (!patch.empty())
 				std::memcpy(mem.get() + off, patch.data(), patch.size());
 
-			const auto target_gpa = hc::translate_va(sys::kern::curr_cr3, page_va);
+			const auto target_gpa = hc::translate_va(target_cr3, page_va);
 			const auto shadow_gpa = hc::translate_va(sys::kern::curr_cr3,
 			                                         reinterpret_cast<std::uintptr_t>(mem.get()));
 
