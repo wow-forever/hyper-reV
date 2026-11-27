@@ -15,14 +15,21 @@
 #requires -RunAsAdministrator
 $ErrorActionPreference = 'Stop'
 
-$here    = Split-Path -Parent $MyInvocation.MyCommand.Path
-# Build outputs are under build\Release\ next to this script.
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Support two layouts:
+#   1. Dev repo: binaries under build\Release\ next to this script.
+#   2. Release zip: binaries flat next to this script.
 $bin_dir = Join-Path $here 'build\Release'
+if (-not (Test-Path (Join-Path $bin_dir 'uefi-boot.efi'))) {
+    $bin_dir = $here
+}
+
 $efi_src = Join-Path $bin_dir 'uefi-boot.efi'
 $dll_src = Join-Path $bin_dir 'hyperv-attachment.dll'
 
-if (-not (Test-Path $efi_src)) { throw "Missing: $efi_src (build uefi-boot first)" }
-if (-not (Test-Path $dll_src)) { throw "Missing: $dll_src (build hyperv-attachment first)" }
+if (-not (Test-Path $efi_src)) { throw "Missing: $efi_src (build uefi-boot first, or place next to this script)" }
+if (-not (Test-Path $dll_src)) { throw "Missing: $dll_src (build hyperv-attachment first, or place next to this script)" }
 
 # Mount EFI partition at Z:
 $efi = 'Z:'
