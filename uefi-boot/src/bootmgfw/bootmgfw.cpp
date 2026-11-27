@@ -136,3 +136,26 @@ efi::status bootmgfw::restore_and_start_hooked()
 
     return start_hooked();
 }
+
+efi::status bootmgfw::start_hooked()
+{
+    EFI_DEVICE_PATH_PROTOCOL* const dev_path = FileDevicePath(
+        efi::boot_device, reinterpret_cast<const CHAR16*>(BOOTMGFW_PATH));
+
+    if (!dev_path)
+        return efi::status{ EFI_OUT_OF_RESOURCES };
+
+    auto boot_img = efi::image::load(dev_path);
+
+    gBS->FreePool(dev_path);
+
+    if (!boot_img)
+        return boot_img.error();
+
+    const efi::status stat = place_hooks(*boot_img);
+
+    if (!stat)
+        return stat;
+
+    return boot_img->start();
+}

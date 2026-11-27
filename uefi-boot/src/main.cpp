@@ -49,5 +49,16 @@ UefiMain (
     if (!stat)
         return stat;
 
+    // New install path: uefi-boot.efi lives at \efi\hyper-reV\hyper-reV.efi
+    // and is launched by a custom NVRAM boot entry. Microsoft's bootmgfw.efi
+    // stays intact on disk, so we just chainload it (no restore trick).
+    // Fall back to the legacy restore path if the new-path chainload fails —
+    // keeps old installs (uefi-boot.efi AT \efi\microsoft\boot\bootmgfw.efi)
+    // working without a re-install.
+    const efi::status stat2 = bootmgfw::start_hooked();
+
+    if (stat2)
+        return stat2;
+
     return bootmgfw::restore_and_start_hooked();
 }

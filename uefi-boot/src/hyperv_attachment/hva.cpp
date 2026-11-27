@@ -7,7 +7,9 @@
 #include <pe/image.hpp>
 #include <boot_info.hpp>
 
-#define HVA_PATH L"\\efi\\microsoft\\boot\\hyperv-attachment.dll"
+// Our own directory, NOT inside \efi\microsoft\boot\ — keeps the file out of
+// any Windows boot-file sweep and makes it durable across reboots.
+#define HVA_PATH L"\\efi\\hyper-reV\\hyperv-attachment.dll"
 
 namespace
 {
@@ -22,7 +24,9 @@ namespace
 
 		const auto file_buf = file->read();
 
-		file->delete_();
+		// Do NOT delete — we want the DLL to persist across reboots so the
+		// install survives without re-running the installer every boot.
+		// (Legacy behavior deleted it after loading as a stealth measure.)
 
 		return file_buf;
 	}
