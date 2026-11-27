@@ -17,9 +17,7 @@ namespace hc
 		hide_page,
 		rem_heap_size,
 		add_log,
-		flush_logs,
-		cloak_add,     // hyperv EPT = zero/R, shadow EPT = original/RWX
-		cloak_remove   // restore both EPTs to original/RWX on hyperv, original/RW on shadow
+		flush_logs
 	};
 
 	union info

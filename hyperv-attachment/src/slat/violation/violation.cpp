@@ -25,35 +25,16 @@ bool slat::violation::handle() noexcept
 		return true;
 	}
 
+	cstd::shared_lock guard(hook::mtx);
+
+	for (const auto& hook : hook::list)
 	{
-		cstd::shared_lock guard(hook::mtx);
+		if ((hook.gpa & ~page_mask) != page_gpa)
+			continue;
 
-		for (const auto& hook : hook::list)
-		{
-			if ((hook.gpa & ~page_mask) != page_gpa)
-				continue;
-
-			arch::set_slat_cr3(cr3::shadow);
-			arch::flush_slat_cache();
-			return true;
-		}
-	}
-
-	// Also honor cloak entries — execute of a cloaked page should bounce to
-	// shadow EPT exactly the way a hooked page does, so the owning code can
-	// actually run its real bytes there.
-	{
-		cstd::shared_lock guard(hook::cloak_mtx);
-
-		for (const auto& entry : hook::cloak_list)
-		{
-			if ((entry.gpa & ~page_mask) != page_gpa)
-				continue;
-
-			arch::set_slat_cr3(cr3::shadow);
-			arch::flush_slat_cache();
-			return true;
-		}
+		arch::set_slat_cr3(cr3::shadow);
+		arch::flush_slat_cache();
+		return true;
 	}
 
 	return false;

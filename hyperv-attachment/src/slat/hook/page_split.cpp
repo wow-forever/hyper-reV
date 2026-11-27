@@ -17,15 +17,6 @@ namespace
 				return true;
 		}
 
-		// Cloak entries also need the same straddle treatment — an
-		// instruction that crosses from a cloaked page into another page
-		// (or vice versa) must execute with X grant on both.
-		for (const auto& entry : slat::hook::cloak_list)
-		{
-			if ((entry.gpa & ~page_mask) == page)
-				return true;
-		}
-
 		return false;
 	}
 

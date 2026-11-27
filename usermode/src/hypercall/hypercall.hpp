@@ -22,13 +22,6 @@ namespace hc
 	bool hook_remove(std::uintptr_t target_gpa) noexcept;
 
 	bool hide_page(std::uintptr_t target_gpa) noexcept;
-
-	// Hide a page from external reads (R returns 0) while keeping owning
-	// code's execute + its own data access intact. See
-	// hyperv-attachment/src/slat/hook/cloak.hpp for the EPT details.
-	bool cloak_add(std::uintptr_t target_gpa) noexcept;
-	bool cloak_remove(std::uintptr_t target_gpa) noexcept;
-
 	std::size_t rem_heap_size() noexcept;
 
 	bool add_log() noexcept;
