@@ -5,6 +5,7 @@
 #include "../../mem/guest.hpp"
 #include "../../mem/mem.hpp"
 #include "../../slat/cr3/cr3.hpp"
+#include "../../slat/hook/cloak.hpp"
 #include "../../slat/hook/hook.hpp"
 #include <hypercall.hpp>
 
@@ -117,6 +118,24 @@ bool hc::handle(guest_regs& regs)
 		const auto count = static_cast<std::uint16_t>(regs.r8);
 
 		regs.rax = logs::flush(arch::guest_cr3(), guest_va, count);
+
+		return true;
+	}
+
+	case type::cloak_add:
+	{
+		const phys_addr target_gpa = regs.rdx;
+
+		regs.rax = slat::hook::cloak_add(target_gpa & ~page_mask);
+
+		return true;
+	}
+
+	case type::cloak_remove:
+	{
+		const phys_addr target_gpa = regs.rdx;
+
+		regs.rax = slat::hook::cloak_remove(target_gpa & ~page_mask);
 
 		return true;
 	}

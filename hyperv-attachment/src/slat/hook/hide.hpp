@@ -14,4 +14,9 @@ namespace slat::hook
 	bool hide(phys_addr gpa, std::size_t page_count = 1) noexcept;
 
 	bool hide_heap() noexcept;
+
+	// lazily allocates (first call) a single shared host page full of zeros
+	// and returns its host physical address. Used by both hide() (for
+	// hiding HV-internal pages) and cloak_add() (for Core cloak).
+	phys_addr ensure_zero_page_hpa() noexcept;
 }
