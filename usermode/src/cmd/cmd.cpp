@@ -416,6 +416,41 @@ namespace
 			LOG_ERR("failed to hide page");
 	}
 
+	CLI::App* init_clk(CLI::App& app, const CLI::Transformer& xf)
+	{
+		SUB(clk, "cloak a page: external reads see zeros, owning code still executes + "
+		         "reads its own data (hyperv EPT = zero/R, shadow EPT = original/RWX)");
+		TREQ(clk, physical_address);
+		return clk;
+	}
+
+	void process_clk(const CLI::App* const clk)
+	{
+		const auto pa = GET_U64(clk, physical_address);
+
+		if (hc::cloak_add(pa))
+			LOG_INFO("cloak_add OK for {:#x}", pa);
+		else
+			LOG_ERR("cloak_add failed for {:#x}", pa);
+	}
+
+	CLI::App* init_rck(CLI::App& app, const CLI::Transformer& xf)
+	{
+		SUB(rck, "remove cloak from a page previously cloaked with clk");
+		TREQ(rck, physical_address);
+		return rck;
+	}
+
+	void process_rck(const CLI::App* const rck)
+	{
+		const auto pa = GET_U64(rck, physical_address);
+
+		if (hc::cloak_remove(pa))
+			LOG_INFO("cloak_remove OK for {:#x}", pa);
+		else
+			LOG_ERR("cloak_remove failed for {:#x}", pa);
+	}
+
 	CLI::App* init_fl(CLI::App& app)
 	{
 		SUB(fl, "flush trap frame logs from hooks");
@@ -570,6 +605,8 @@ namespace
 		const CLI::App* const rkh  = init_rkh(app, xf);
 		const CLI::App* const gva  = init_gva(app, xf);
 		const CLI::App* const hgpp = init_hgpp(app, xf);
+		const CLI::App* const clk  = init_clk(app, xf);
+		const CLI::App* const rck  = init_rck(app, xf);
 		const CLI::App* const fl   = init_fl(app);
 		const CLI::App* const hfpc = init_hfpc(app);
 		const CLI::App* const lkm  = init_lkm(app);
@@ -593,6 +630,8 @@ namespace
 			PROCESS_COMMAND(rkh);
 			PROCESS_COMMAND(gva);
 			PROCESS_COMMAND(hgpp);
+			PROCESS_COMMAND(clk);
+			PROCESS_COMMAND(rck);
 			PROCESS_COMMAND(fl);
 			PROCESS_COMMAND(hfpc);
 			PROCESS_COMMAND(lkm);

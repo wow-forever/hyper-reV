@@ -65,6 +65,16 @@ bool hc::hide_page(const std::uintptr_t target_gpa) noexcept
 	return send(type::hide_page, target_gpa);
 }
 
+bool hc::cloak_add(const std::uintptr_t target_gpa) noexcept
+{
+	return send(type::cloak_add, target_gpa);
+}
+
+bool hc::cloak_remove(const std::uintptr_t target_gpa) noexcept
+{
+	return send(type::cloak_remove, target_gpa);
+}
+
 std::size_t hc::rem_heap_size() noexcept
 {
 	return send(type::rem_heap_size);

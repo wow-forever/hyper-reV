@@ -4,9 +4,11 @@
 #include "../vcpu/vcpu.hpp"
 #include "../arch/current.hpp"
 #include "../slat/violation/violation.hpp"
+#include "../slat/hook/cloak.hpp"
 #include "../intr/nmi.hpp"
 #include <boot_info.hpp>
 #include <crt.hpp>
+#include <intrin.h>
 
 using handler_fn = std::uint64_t(*)(std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t);
 
@@ -43,6 +45,17 @@ std::uint64_t vmexit::detour(const std::uint64_t a1, const std::uint64_t a2,
 {
 	first::handle();
 	first::handle_non_bsp();
+
+	// Cloak lifetime tracking — proves "the installing process is alive" by
+	// stamping the current guest CR3's last-seen tsc, and lets the sweeper
+	// retire cloak entries whose CR3 has gone away. Both calls are O(1) on
+	// the hot path; sweep only runs ≈ twice a second. Must happen on every
+	// VMEXIT so any VCPU scheduled on a process keeps its CR3 fresh.
+	{
+		const auto now = __rdtsc();
+		slat::hook::cr3_map_touch(arch::guest_cr3().flags, now);
+		slat::hook::cloak_sweep_if_due(now);
+	}
 
 	guest_regs regs = arch::guest_regs(a1, a2);
 

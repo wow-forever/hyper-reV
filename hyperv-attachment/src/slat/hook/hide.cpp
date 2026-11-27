@@ -15,19 +15,6 @@ namespace
 	phys_addr heap_gpa = 0;
 	std::size_t heap_pages = 0;
 
-	phys_addr ensure_zero_page_hpa() noexcept
-	{
-		if (zero_page_hpa)
-			return zero_page_hpa;
-
-		void* const page = mem::page::alloc(1);
-		if (!page)
-			return 0;
-
-		zero_page_hpa = mem::phys_for_map(page);
-		return zero_page_hpa;
-	}
-
 	bool hide_in(const cr3 root, const phys_addr gpa,
 	             const std::size_t page_count, const phys_addr zero_pfn) noexcept
 	{
@@ -48,6 +35,19 @@ void slat::hook::init_hide(const boot_info& bi) noexcept
 {
 	heap_gpa = bi.heap_range.base;
 	heap_pages = bi.heap_range.size / page_size;
+}
+
+phys_addr slat::hook::ensure_zero_page_hpa() noexcept
+{
+	if (zero_page_hpa)
+		return zero_page_hpa;
+
+	void* const page = mem::page::alloc(1);
+	if (!page)
+		return 0;
+
+	zero_page_hpa = mem::phys_for_map(page);
+	return zero_page_hpa;
 }
 
 bool slat::hook::hide(const phys_addr gpa, const std::size_t page_count) noexcept

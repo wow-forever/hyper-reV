@@ -71,7 +71,9 @@ bool slat::hook::add(const phys_addr gpa, const phys_addr shadow_hpa) noexcept
 		shadow_pte->page_frame_number = shadow_hpa >> page_shift;
 		arch::slat_set_perm(*shadow_pte, page_perm::rwx);
 
-		list.push_front({ gpa, original_hpa, shadow_hpa });
+		// Trailing 0, 0: installer_cr3 + last_active_tsc are cloak-only fields
+		// (see info.hpp). hook entries don't participate in cloak_sweep.
+		list.push_front({ gpa, original_hpa, shadow_hpa, 0, 0 });
 	}
 
 	cache::flush_all();
